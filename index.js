@@ -1,7 +1,7 @@
 const express = require('express');
-const dotenv=require("dotenv");
+const dotenv = require("dotenv");
 dotenv.config();
-const cors=require("cors");
+const cors = require("cors");
 const app = express();
 const port = process.env.PORT;
 const { MongoClient, ServerApiVersion } = require('mongodb');
@@ -22,34 +22,57 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     //await client.connect();
-       const database=client.db("fitzone");
-       const classCollection=database.collection("classes");
-       const forumsCollection=database.collection("forums");
+    const database = client.db("fitzone");
+    const classCollection = database.collection("classes");
+    const forumsCollection = database.collection("forums");
+    const subscriptionCollection = database.collection("subscription");
+    const usersCollection = database.collection("user");
 
-        app.get('/classes',async(req,res)=>{
-             const result=await classCollection.find().toArray();
-             res.send(result);
-       });
+    app.post("/subscription", async (req, res) => {
+      const { sessionId, userId, priceId } = req.body;
+
+      const result = await subscriptionCollection.insertOne({
+        sessionId,
+        userId,
+        priceId
+      })
+
+      res.json({
+        success: true,
+        message: "payment successful",
+        result,
+      });
+    })
+
+    app.get('/classes', async (req, res) => {
+      const result = await classCollection.find().toArray();
+      res.send(result);
+    });
 
 
-       app.post('/classes',async(req,res)=>{
-              const oneClass=req.body;
-              const result=await classCollection.insertOne(oneClass);
-              res.send(result);
-       });
-
-       
-        app.get('/forums',async(req,res)=>{
-             const result=await forumsCollection.find().toArray();
-             res.send(result);
-       });
+    app.post('/classes', async (req, res) => {
+      const oneClass = req.body;
+      const result = await classCollection.insertOne(oneClass);
+      res.send(result);
+    });
 
 
-       app.post('/forums',async(req,res)=>{
-              const forum=req.body;
-              const result=await forumsCollection.insertOne(forum);
-              res.send(result);
-       });
+    app.get('/forums', async (req, res) => {
+      const result = await forumsCollection.find().toArray();
+      res.send(result);
+    });
+
+
+    app.post('/forums', async (req, res) => {
+      const forum = req.body;
+      const result = await forumsCollection.insertOne(forum);
+      res.send(result);
+    });
+    // users data
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
 
 
     // Send a ping to confirm a successful connection
