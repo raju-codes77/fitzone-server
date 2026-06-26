@@ -25,20 +25,20 @@ async function run() {
     const database = client.db("fitzone");
     const classCollection = database.collection("classes");
     const forumsCollection = database.collection("forums");
-    const subscriptionCollection = database.collection("subscription");
+    const paymentCollection = database.collection("payment");
     const usersCollection = database.collection("user");
 
     app.post("/subscription", async (req, res) => {
-      const { sessionId, userId, priceId } = req.body;
+      const { sessionId, userId, productId } = req.body;
 
-      const isExist = await subscriptionCollection.findOne({sessionId});
+      const isExist = await paymentCollection.findOne({sessionId});
       if (isExist) {
         return res.json({msg: "Already Exist"})
       }
-      const result = await subscriptionCollection.insertOne({
+      const result = await paymentCollection.insertOne({
         sessionId,
         userId,
-        priceId
+        productId,
       })
 
       res.json({
@@ -62,7 +62,7 @@ async function run() {
 
 
     app.get('/forums', async (req, res) => {
-      const {page=1,limit=6} = req.query;
+      const {page=1,limit=8} = req.query;
       const skip = (Number(page-1))*Number(limit);
       const result = await forumsCollection.find().skip(skip).limit(Number(limit)).toArray();
       res.send(result);
