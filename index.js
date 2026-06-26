@@ -62,7 +62,9 @@ async function run() {
 
 
     app.get('/forums', async (req, res) => {
-      const result = await forumsCollection.find().toArray();
+      const {page=1,limit=6} = req.query;
+      const skip = (Number(page-1))*Number(limit);
+      const result = await forumsCollection.find().skip(skip).limit(Number(limit)).toArray();
       res.send(result);
     });
 
