@@ -31,6 +31,10 @@ async function run() {
     app.post("/subscription", async (req, res) => {
       const { sessionId, userId, priceId } = req.body;
 
+      const isExist = await subscriptionCollection.findOne({sessionId});
+      if (isExist) {
+        return res.json({msg: "Already Exist"})
+      }
       const result = await subscriptionCollection.insertOne({
         sessionId,
         userId,
