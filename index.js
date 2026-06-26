@@ -4,7 +4,7 @@ dotenv.config();
 const cors = require("cors");
 const app = express();
 const port = process.env.PORT;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
 const uri = process.env.MONGO_DB_URI
 
 
@@ -53,7 +53,18 @@ async function run() {
       res.send(result);
     });
 
+// payment and booking class data
+    app.get('/subscription', async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+      res.send(result);
+    });
 
+     app.get('/subscription/:userId', async (req, res) => {
+      const {userId} = req.params;
+      const result = await paymentCollection.find({userId}).toArray();
+      res.send(result);
+    });
+// 
     app.post('/classes', async (req, res) => {
       const oneClass = req.body;
       const result = await classCollection.insertOne(oneClass);
