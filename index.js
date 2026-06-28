@@ -185,6 +185,71 @@ async function run() {
     });
 
 
+    // Approve class
+    app.patch("/classes/approve/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await classCollection.updateOne(
+          { _id: id },
+          { $set: { status: "Approved" } }
+        );
+
+        console.log("Approve result:", result);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ success: false, message: "Class not found" });
+        }
+
+        res.send({ success: true, message: "Class approved", result });
+      } catch (error) {
+        
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // Reject class
+    app.patch("/classes/reject/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await classCollection.updateOne(
+          { _id: id },
+          { $set: { status: "Rejected" } }
+        );
+
+       
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ success: false, message: "Class not found" });
+        }
+
+        res.send({ success: true, message: "Class rejected", result });
+      } catch (error) {
+        
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // Delete class
+    app.delete("/classes/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await classCollection.deleteOne({ _id: id });
+
+     
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ success: false, message: "Class not found" });
+        }
+
+        res.send({ success: true, message: "Class deleted", result });
+      } catch (error) {
+        
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
     // favorites
 
     app.post("/favorites", async (req, res) => {
