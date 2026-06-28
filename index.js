@@ -150,8 +150,41 @@ async function run() {
       });
 
     });
+    //user blocked unblock
+    app.patch("/users/block/:userId", async (req, res) => {
 
-    
+      try {
+
+        const { userId } = req.params;
+        const { blocked } = req.body;
+
+        await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              blocked,
+            },
+          }
+        );
+
+        res.send({
+          success: true,
+          message: blocked
+            ? "User blocked"
+            : "User unblocked",
+        });
+
+      } catch (error) {
+
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+
+      }
+    });
+
+
     // favorites
 
     app.post("/favorites", async (req, res) => {
