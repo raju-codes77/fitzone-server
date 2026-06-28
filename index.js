@@ -28,6 +28,51 @@ async function run() {
     const paymentCollection = database.collection("payment");
     const usersCollection = database.collection("user");
     const favoritesCollection = database.collection("favorites");
+    const trainersCollection = database.collection("trainers");
+
+    // trainer application
+    // apply trainer
+
+    app.post("/trainer-applications", async (req, res) => {
+
+      const applicationData = req.body;
+
+      const { userId } = applicationData;
+
+      // already applied check
+
+      const alreadyApplied =
+        await trainersCollection.findOne({ userId });
+
+      if (alreadyApplied) {
+
+        return res.send({
+          success: false,
+          message: "Already Applied",
+        });
+
+      }
+
+      const result =
+        await trainersCollection.insertOne({
+          ...applicationData,
+          status: "Pending",
+        });
+
+      res.send({
+        success: true,
+        result,
+      });
+
+    });
+
+    app.get('/trainer-applications', async (req, res) => {
+      const result = await trainersCollection.find().toArray();
+      res.send(result);
+    });
+
+    
+    // favorites
 
     app.post("/favorites", async (req, res) => {
 
@@ -73,13 +118,13 @@ async function run() {
     });
 
     app.get('/favorites/:userId', async (req, res) => {
-      const { userId }= req.params;
+      const { userId } = req.params;
       const result = await favoritesCollection.find({ userId }).toArray();
       res.send(result);
     });
 
     app.post("/subscription", async (req, res) => {
-      const { sessionId, userId, productId } = req.body;
+      const { sessionId, userId, productId,price,paymentDate,userEmail } = req.body;
 
       const isExist = await paymentCollection.findOne({ sessionId });
       if (isExist) {
@@ -89,6 +134,9 @@ async function run() {
         sessionId,
         userId,
         productId,
+        price,
+        paymentDate,
+        userEmail
       })
 
       res.json({
