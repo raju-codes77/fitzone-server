@@ -70,6 +70,86 @@ async function run() {
       const result = await trainersCollection.find().toArray();
       res.send(result);
     });
+    app.patch("/trainer-applications/approve/:id", async (req, res) => {
+
+      const { id } = req.params;
+
+      // Find trainer application
+      const application = await trainersCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!application) {
+        return res.status(404).send({
+          success: false,
+          message: "Application not found",
+        });
+      }
+
+      // Update application status
+      await trainersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            status: "Approved",
+          },
+        }
+      );
+
+      // Update user role
+      await usersCollection.updateOne(
+        {
+          _id: new ObjectId(application.userId),
+        },
+        {
+          $set: {
+            role: "trainer",
+          },
+        }
+      );
+
+      res.send({
+        success: true,
+        message: "Trainer approved successfully",
+      });
+    });
+
+    // trainer rejected
+    app.patch("/trainer-applications/reject/:userId", async (req, res) => {
+      const { userId } = req.params;
+
+      const application = await trainersCollection.findOne({
+        _id: new ObjectId(userId),
+      });
+
+      await trainersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { status: "Rejected" } }
+      );
+
+      res.send({
+        success: true,
+        message: "Rejected",
+        application,
+      });
+    });
+    //promote and demote trainer
+    app.patch("/users/:userId", async (req, res) => {
+
+      const { userId } = req.params;
+      const { role } = req.body;
+
+      await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { role } }
+      );
+
+      res.send({
+        success: true,
+        message: "User role updated successfully",
+      });
+
+    });
 
     
     // favorites
@@ -124,7 +204,7 @@ async function run() {
     });
 
     app.post("/subscription", async (req, res) => {
-      const { sessionId, userId, productId,price,paymentDate,userEmail } = req.body;
+      const { sessionId, userId, productId, price, paymentDate, userEmail } = req.body;
 
       const isExist = await paymentCollection.findOne({ sessionId });
       if (isExist) {
