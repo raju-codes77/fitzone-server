@@ -250,6 +250,25 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+    //delete forum
+    app.delete("/forums/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await forumsCollection.deleteOne({ _id: id });
+
+     
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ success: false, message: "Class not found" });
+        }
+
+        res.send({ success: true, message: "Class deleted", result });
+      } catch (error) {
+        
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
     // favorites
 
     app.post("/favorites", async (req, res) => {
