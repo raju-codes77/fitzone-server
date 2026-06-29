@@ -191,7 +191,7 @@ async function run() {
         const { id } = req.params;
 
         const result = await classCollection.updateOne(
-          { _id: id },
+          { _id:new ObjectId(id) },
           { $set: { status: "Approved" } }
         );
 
@@ -203,7 +203,7 @@ async function run() {
 
         res.send({ success: true, message: "Class approved", result });
       } catch (error) {
-        
+
         res.status(500).send({ success: false, message: error.message });
       }
     });
@@ -214,11 +214,11 @@ async function run() {
         const { id } = req.params;
 
         const result = await classCollection.updateOne(
-          { _id: id },
+          { _id: new ObjectId(id) },
           { $set: { status: "Rejected" } }
         );
 
-       
+
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ success: false, message: "Class not found" });
@@ -226,7 +226,7 @@ async function run() {
 
         res.send({ success: true, message: "Class rejected", result });
       } catch (error) {
-        
+
         res.status(500).send({ success: false, message: error.message });
       }
     });
@@ -236,9 +236,9 @@ async function run() {
       try {
         const { id } = req.params;
 
-        const result = await classCollection.deleteOne({ _id: id });
+        const result = await classCollection.deleteOne({ _id: new ObjectId(id) });
 
-     
+
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ success: false, message: "Class not found" });
@@ -246,18 +246,42 @@ async function run() {
 
         res.send({ success: true, message: "Class deleted", result });
       } catch (error) {
-        
+
         res.status(500).send({ success: false, message: error.message });
       }
+    });
+    //view forum by id
+    app.get("/forums/:id", async (req, res) => {
+
+      const { id } = req.params;
+
+      const result = await forumsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!result) {
+
+        return res.status(404).send({
+          success: false,
+          message: "Forum not found",
+        });
+
+      }
+
+      res.send({
+        ...result,
+        _id: result._id.toString(),
+      });
+
     });
     //delete forum
     app.delete("/forums/:id", async (req, res) => {
       try {
         const { id } = req.params;
 
-        const result = await forumsCollection.deleteOne({ _id: id });
+        const result = await forumsCollection.deleteOne({ _id: new ObjectId(id) });
 
-     
+
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ success: false, message: "Class not found" });
@@ -265,7 +289,7 @@ async function run() {
 
         res.send({ success: true, message: "Class deleted", result });
       } catch (error) {
-        
+
         res.status(500).send({ success: false, message: error.message });
       }
     });
@@ -347,6 +371,16 @@ async function run() {
       const result = await classCollection.find().toArray();
       res.send(result);
     });
+    //pagination classes
+    app.get('/pagination/classes', async (req, res) => {
+      const { page = 1, limit = 8 } = req.query;
+      const skip = (Number(page - 1)) * Number(limit);
+      const result = await classCollection.find().skip(skip).limit(Number(limit)).toArray();
+      const totalData=await classCollection.countDocuments();
+      const totalPages=Math.ceil(totalData/Number(limit));
+      res.send({data:result,page :Number(page),totalPages});
+   
+    });
 
     // payment and booking class data
     app.get('/subscription', async (req, res) => {
@@ -371,6 +405,15 @@ async function run() {
       const { page = 1, limit = 8 } = req.query;
       const skip = (Number(page - 1)) * Number(limit);
       const result = await forumsCollection.find().skip(skip).limit(Number(limit)).toArray();
+      const totalData=await forumsCollection.countDocuments();
+      const totalPages=Math.ceil(totalData/Number(limit));
+      res.send({data:result,page :Number(page),totalPages});
+   
+    });
+
+    //forums manage
+    app.get('/manage/forums/', async (req, res) => {
+      const result = await forumsCollection.find().toArray();
       res.send(result);
     });
 
