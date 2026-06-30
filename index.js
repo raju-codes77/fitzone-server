@@ -5,6 +5,7 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { createRemoteJWKSet, jwtVerify } = require('jose-cjs');
 const uri = process.env.MONGO_DB_URI
 
 
@@ -18,6 +19,36 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+const JWKS=createRemoteJWKSet(new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),);
+const verifyToken=async(req,res,next)=>{  
+  const authHeader=req.headers.authorization;
+  // console.log("authHeader",authHeader)
+  if(!authHeader || !authHeader.startsWith("Bearer ")){
+    return res.status(401).json({message:"unauthorized"});
+  }
+  const token=authHeader.split(" ")[1];
+  //console.log(token);
+
+  try{
+    const {payload}=await jwtVerify(token,JWKS)
+    req.user=payload
+
+    next()
+  }catch(error){
+    console.log(error)
+    return res.status(401).json({message:"token expired or invalid"});
+  }
+}
+
+const trainerVerify=async(req,res,next)=>{
+  const user=req.user;
+  if(user.role !=="trainer"){
+    return res.status(403).json({message:"Forbidden"});
+  }
+  next()
+}
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -373,6 +404,7 @@ async function run() {
     });
     //pagination classes
     app.get('/pagination/classes', async (req, res) => {
+      const {search}=req.query;
       const { page = 1, limit = 8 } = req.query;
       const skip = (Number(page - 1)) * Number(limit);
       const result = await classCollection.find().skip(skip).limit(Number(limit)).toArray();
@@ -394,7 +426,7 @@ async function run() {
       res.send(result);
     });
     // 
-    app.post('/classes', async (req, res) => {
+    app.post('/classes',verifyToken,trainerVerify, async (req, res) => {
       const oneClass = req.body;
       const result = await classCollection.insertOne(oneClass);
       res.send(result);
