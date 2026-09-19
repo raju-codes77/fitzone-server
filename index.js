@@ -6,21 +6,25 @@ const app = express();
 const port = process.env.PORT;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { createRemoteJWKSet, jwtVerify } = require('jose-cjs');
-const uri = process.env.MONGO_DB_URI
-
+const uri = process.env.MONGODB_URI || process.env.MONGO_DB_URI;
 
 app.use(cors());
 app.use(express.json());
 
 const { generateWorkoutPlan, generateNutritionPlan, generateMealPlan, generateCoachResponse, generateChatbotResponse } = require("./services/ai/ai.service");
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+let client;
+if (!global._mongoClient) {
+  global._mongoClient = new MongoClient(uri, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+    serverSelectionTimeoutMS: 5000,
+  });
+}
+client = global._mongoClient;
 
 const JWKS=createRemoteJWKSet(new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),);
 const verifyToken=async(req,res,next)=>{  
@@ -600,7 +604,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+          if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
         }
       }
     });
@@ -632,7 +641,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+          if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
         }
       }
     });
@@ -666,7 +680,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+          if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
         }
       }
     });
@@ -709,7 +728,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, summary });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
 
@@ -735,7 +759,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
            totalPages: Math.ceil(total / Number(limit))
         });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
 
@@ -750,7 +779,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, plan });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
 
@@ -767,7 +801,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, message: "Plan archived successfully" });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
 
@@ -782,7 +821,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+          if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
         }
       }
     });
@@ -863,7 +907,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
           
         res.json({ success: true, conversations });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
     
@@ -876,7 +925,12 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, messages });
       } catch (error) {
-        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        if (error.name === "MongoServerSelectionError" || error.name === "MongoTimeoutError") {
+          res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+        } else {
+          console.error("[AI Server Error]", error.message);
+          res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
+        }
       }
     });
 
@@ -887,8 +941,13 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: "ok", entrypoint: "index.js", environment: "production" });
+app.get('/health', async (req, res) => {
+  try {
+    await client.db('admin').command({ ping: 1 });
+    res.json({ success: true, service: "fitzone-server", database: "connected" });
+  } catch (err) {
+    res.status(503).json({ success: false, service: "fitzone-server", database: "unavailable" });
+  }
 });
 
 app.use((req, res) => {

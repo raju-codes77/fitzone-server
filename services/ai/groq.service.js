@@ -18,7 +18,7 @@ const generateConversationalResponse = async (messages) => {
   try {
     const chatCompletion = await client.chat.completions.create({
       messages: messages,
-      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
       temperature: 0.7,
       max_tokens: 1024,
       top_p: 1,
@@ -51,7 +51,7 @@ const generateStructuredFallback = async (systemInstruction, prompt) => {
         { role: "system", content: jsonInstruction },
         { role: "user", content: prompt }
       ],
-      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
       temperature: 0.1,
       response_format: { type: "json_object" },
       max_tokens: 2048,
