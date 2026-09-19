@@ -13,18 +13,21 @@ app.use(express.json());
 
 const { generateWorkoutPlan, generateNutritionPlan, generateMealPlan, generateCoachResponse, generateChatbotResponse } = require("./services/ai/ai.service");
 
-let client;
-if (!global._mongoClient) {
-  global._mongoClient = new MongoClient(uri, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-    serverSelectionTimeoutMS: 5000,
-  });
-}
-client = global._mongoClient;
+app.get('/health', (req, res) => res.json({ success: true, service: "fitzone-server" }));
+
+app.use(async (req, res, next) => {
+  try {
+    if (client && client.topology && client.topology.isClosed()) {
+      clientPromise = null;
+    }
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(503).json({ success: false, message: "Database service is temporarily unavailable." });
+  }
+});
+
+
 
 const JWKS=createRemoteJWKSet(new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),);
 const verifyToken=async(req,res,next)=>{  
@@ -71,22 +74,56 @@ const trainerVerify=async(req,res,next)=>{
   next()
 }
 
-const database = client.db("fitzone");
-const classCollection = database.collection("classes");
-const forumsCollection = database.collection("forums");
-const forumCommentsCollection = database.collection("forum_comments");
-const newsletterCollection = database.collection("newsletter");
-const paymentCollection = database.collection("payment");
-const usersCollection = database.collection("user");
-const favoritesCollection = database.collection("favorites");
-const trainersCollection = database.collection("trainers");
-const aiPlansCollection = database.collection("aiPlans");
-const chatConversationsCollection = database.collection("chatConversations");
-const chatMessagesCollection = database.collection("chatMessages");
+let client;
+let database;
+let classCollection;
+let forumsCollection;
+let forumCommentsCollection;
+let newsletterCollection;
+let paymentCollection;
+let usersCollection;
+let favoritesCollection;
+let trainersCollection;
+let aiPlansCollection;
+let chatConversationsCollection;
+let chatMessagesCollection;
 
-// Setup indexes for AI Plans
-aiPlansCollection.createIndex({ userEmail: 1, type: 1, status: 1 }).catch(console.error);
-aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.error);
+let clientPromise = null;
+
+async function connectDB() {
+  if (clientPromise) return clientPromise;
+
+  const newClient = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+  
+  clientPromise = newClient.connect().then(connectedClient => {
+    client = connectedClient;
+    database = client.db("fitzone");
+    classCollection = database.collection("classes");
+    forumsCollection = database.collection("forums");
+    forumCommentsCollection = database.collection("forum_comments");
+    newsletterCollection = database.collection("newsletter");
+    paymentCollection = database.collection("payment");
+    usersCollection = database.collection("user");
+    favoritesCollection = database.collection("favorites");
+    trainersCollection = database.collection("trainers");
+    aiPlansCollection = database.collection("aiPlans");
+    chatConversationsCollection = database.collection("chatConversations");
+    chatMessagesCollection = database.collection("chatMessages");
+
+    // Setup indexes for AI Plans
+    aiPlansCollection.createIndex({ userEmail: 1, type: 1, status: 1 }).catch(console.error);
+    aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.error);
+
+    return connectedClient;
+  }).catch(err => {
+    clientPromise = null;
+    throw err;
+  });
+
+  return clientPromise;
+}
+
+
 
     // Premium Check Middleware
     const premiumVerify = async (req, res, next) => {
@@ -941,12 +978,16 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-app.get('/health', async (req, res) => {
+app.get('/health/db', async (req, res) => {
   try {
-    await client.db('admin').command({ ping: 1 });
-    res.json({ success: true, service: "fitzone-server", database: "connected" });
+    if (client && client.topology && client.topology.isClosed()) {
+      clientPromise = null;
+    }
+    const activeClient = await connectDB();
+    await activeClient.db('admin').command({ ping: 1 });
+    res.json({ success: true, database: "connected" });
   } catch (err) {
-    res.status(503).json({ success: false, service: "fitzone-server", database: "unavailable" });
+    res.status(503).json({ success: false, database: "unavailable" });
   }
 });
 
