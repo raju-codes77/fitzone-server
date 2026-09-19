@@ -67,25 +67,21 @@ const trainerVerify=async(req,res,next)=>{
   next()
 }
 
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    //await client.connect();
-    const database = client.db("fitzone");
-    const classCollection = database.collection("classes");
-    const forumsCollection = database.collection("forums");
-    const newsletterCollection = database.collection("newsletter");
-    const paymentCollection = database.collection("payment");
-    const usersCollection = database.collection("user");
-    const favoritesCollection = database.collection("favorites");
-    const trainersCollection = database.collection("trainers");
-    const aiPlansCollection = database.collection("aiPlans");
-    const chatConversationsCollection = database.collection("chatConversations");
-    const chatMessagesCollection = database.collection("chatMessages");
+const database = client.db("fitzone");
+const classCollection = database.collection("classes");
+const forumsCollection = database.collection("forums");
+const newsletterCollection = database.collection("newsletter");
+const paymentCollection = database.collection("payment");
+const usersCollection = database.collection("user");
+const favoritesCollection = database.collection("favorites");
+const trainersCollection = database.collection("trainers");
+const aiPlansCollection = database.collection("aiPlans");
+const chatConversationsCollection = database.collection("chatConversations");
+const chatMessagesCollection = database.collection("chatMessages");
 
-    // Setup indexes for AI Plans
-    await aiPlansCollection.createIndex({ userEmail: 1, type: 1, status: 1 });
-    await aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 });
+// Setup indexes for AI Plans
+aiPlansCollection.createIndex({ userEmail: 1, type: 1, status: 1 }).catch(console.error);
+aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.error);
 
     // Premium Check Middleware
     const premiumVerify = async (req, res, next) => {
@@ -816,18 +812,19 @@ async function run() {
       }
     });
 
-    // Send a ping to confirm a successful connection
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    //await client.close();
-  }
-}
-run().catch(console.dir);
-
+// Send a ping to confirm a successful connection
+console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: "ok", entrypoint: "index.js", environment: "production" });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "API route not found" });
 });
 
 app.listen(port, () => {
