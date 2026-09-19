@@ -17,7 +17,7 @@ const generateStructuredPlan = async (systemInstruction, prompt) => {
 
   try {
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -59,7 +59,7 @@ const generateConversational = async (systemInstruction, messages) => {
     }));
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-1.5-flash",
       contents: formattedHistory,
       config: {
         systemInstruction,

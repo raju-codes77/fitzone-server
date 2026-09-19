@@ -204,21 +204,29 @@ Please generate the local meal plan now.`;
 };
 
 const generateCoachResponse = async (conversationHistory, userProfile) => {
-  // Inject system prompt into conversation
-  const messages = [
-    {
-      role: "system",
-      content: `You are the FitZone AI Coach, a highly knowledgeable and encouraging fitness assistant.
+  const systemInstruction = `You are the FitZone AI Coach, a highly knowledgeable and encouraging fitness assistant.
 You provide personalized fitness, workout, and nutrition advice.
 Keep your answers concise, practical, and formatted beautifully using markdown.
 Do NOT provide guaranteed medical diagnoses.
 Disclaimer: Remind the user if necessary that AI-generated suggestions are for general informational purposes.
-User Profile context: ${JSON.stringify(userProfile)}`
-    },
-    ...conversationHistory
-  ];
+User Profile context: ${JSON.stringify(userProfile)}`;
 
-  return generateConversationalResponse(messages);
+  try {
+    return await generateConversational(systemInstruction, conversationHistory);
+  } catch (error) {
+    console.log("[AI] Coach Gemini failed, falling back to Groq");
+    try {
+      const groqMessages = [
+        { role: "system", content: systemInstruction },
+        ...conversationHistory
+      ];
+      return await generateConversationalResponse(groqMessages);
+    } catch (fallbackError) {
+      const e = new Error("AI Coach service is temporarily unavailable.");
+      e.status = 503;
+      throw e;
+    }
+  }
 };
 
 module.exports = {

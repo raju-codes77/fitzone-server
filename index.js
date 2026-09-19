@@ -532,7 +532,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          res.status(500).json({ success: false, message: error.message });
+          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
         }
       }
     });
@@ -564,7 +564,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          res.status(500).json({ success: false, message: error.message });
+          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
         }
       }
     });
@@ -598,7 +598,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          res.status(500).json({ success: false, message: error.message });
+          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
         }
       }
     });
@@ -641,7 +641,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, summary });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
 
@@ -667,7 +667,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
            totalPages: Math.ceil(total / Number(limit))
         });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
 
@@ -682,7 +682,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, plan });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
 
@@ -699,7 +699,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, message: "Plan archived successfully" });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
 
@@ -714,7 +714,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         if (error.status === 429 || error.status === 503) {
           res.status(error.status).json({ success: false, code: error.code, message: error.message });
         } else {
-          res.status(500).json({ success: false, message: error.message });
+          console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
         }
       }
     });
@@ -795,7 +795,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
           
         res.json({ success: true, conversations });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
     
@@ -808,7 +808,7 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
         
         res.json({ success: true, messages });
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("[AI Server Error]", error.message); res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again later." });
       }
     });
 
