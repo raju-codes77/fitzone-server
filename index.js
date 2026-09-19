@@ -12,6 +12,8 @@ const uri = process.env.MONGO_DB_URI
 app.use(cors());
 app.use(express.json());
 
+const { generateWorkoutPlan, generateNutritionPlan, generateMealPlan, generateCoachResponse, generateChatbotResponse } = require("./services/ai/ai.service");
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -41,6 +43,22 @@ const verifyToken=async(req,res,next)=>{
   }
 }
 
+const optionalVerifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    req.user = null;
+    return next();
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    req.user = payload;
+  } catch (error) {
+    req.user = null;
+  }
+  next();
+};
+
 const trainerVerify=async(req,res,next)=>{
   const user=req.user;
   if(user.role !=="trainer"){
@@ -56,10 +74,32 @@ async function run() {
     const database = client.db("fitzone");
     const classCollection = database.collection("classes");
     const forumsCollection = database.collection("forums");
+    const newsletterCollection = database.collection("newsletter");
     const paymentCollection = database.collection("payment");
     const usersCollection = database.collection("user");
     const favoritesCollection = database.collection("favorites");
     const trainersCollection = database.collection("trainers");
+    const aiPlansCollection = database.collection("aiPlans");
+    const chatConversationsCollection = database.collection("chatConversations");
+    const chatMessagesCollection = database.collection("chatMessages");
+
+    // Setup indexes for AI Plans
+    await aiPlansCollection.createIndex({ userEmail: 1, type: 1, status: 1 });
+    await aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 });
+
+    // Premium Check Middleware
+    const premiumVerify = async (req, res, next) => {
+      try {
+        const user = req.user;
+        const isPremium = await paymentCollection.findOne({ userEmail: user.email });
+        if (!isPremium) {
+          return res.status(403).json({ message: "Premium membership required" });
+        }
+        next();
+      } catch (error) {
+        return res.status(500).json({ message: "Failed to verify premium status" });
+      }
+    };
 
     // trainer application
     // apply trainer
@@ -455,15 +495,328 @@ async function run() {
       const result = await forumsCollection.insertOne(forum);
       res.send(result);
     });
-    // users data
     app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
+    // AI Features Endpoints
+    
+    const archiveActivePlan = async (userEmail, type, excludeId) => {
+       await aiPlansCollection.updateMany(
+         { userEmail, type, status: "active", _id: { $ne: excludeId } },
+         { $set: { status: "archived", updatedAt: new Date() } }
+       );
+    };
+
+    app.post('/ai/workout-plan', verifyToken, async (req, res) => {
+      try {
+        const { requirements } = req.body;
+        const userProfile = { email: req.user?.email, name: req.user?.name };
+        
+        const plan = await generateWorkoutPlan(userProfile, requirements);
+        
+        const newPlan = {
+          userEmail: req.user.email,
+          type: "workout",
+          status: "active",
+          source: "gemini",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          preferences: requirements,
+          planData: plan,
+          title: `${requirements.goal || 'Fitness'} Workout Plan`
+        };
+        const insertResult = await aiPlansCollection.insertOne(newPlan);
+        
+        await archiveActivePlan(req.user.email, "workout", insertResult.insertedId);
+        
+        res.json({ success: true, plan: { ...newPlan, _id: insertResult.insertedId } });
+      } catch (error) {
+        if (error.status === 429 || error.status === 503) {
+          res.status(error.status).json({ success: false, code: error.code, message: error.message });
+        } else {
+          res.status(500).json({ success: false, message: error.message });
+        }
+      }
+    });
+
+    app.post('/ai/nutrition-plan', verifyToken, async (req, res) => {
+      try {
+        const { requirements } = req.body;
+        const userProfile = { email: req.user?.email, name: req.user?.name };
+        
+        const plan = await generateNutritionPlan(userProfile, requirements);
+        
+        const newPlan = {
+          userEmail: req.user.email,
+          type: "nutrition",
+          status: "active",
+          source: "gemini",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          preferences: requirements,
+          planData: plan,
+          title: `${requirements.goal || 'Daily'} Nutrition Plan`
+        };
+        const insertResult = await aiPlansCollection.insertOne(newPlan);
+        
+        await archiveActivePlan(req.user.email, "nutrition", insertResult.insertedId);
+        
+        res.json({ success: true, plan: { ...newPlan, _id: insertResult.insertedId } });
+      } catch (error) {
+        if (error.status === 429 || error.status === 503) {
+          res.status(error.status).json({ success: false, code: error.code, message: error.message });
+        } else {
+          res.status(500).json({ success: false, message: error.message });
+        }
+      }
+    });
+
+    app.post('/ai/meal-plan', verifyToken, async (req, res) => {
+      try {
+        const { requirements } = req.body;
+        const userProfile = { email: req.user?.email, name: req.user?.name };
+        
+        const plan = await generateMealPlan(userProfile, requirements);
+        
+        const countryContext = requirements.country ? `${requirements.country} ` : "";
+        
+        const newPlan = {
+          userEmail: req.user.email,
+          type: "meal",
+          status: "active",
+          source: "gemini",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          preferences: requirements,
+          planData: plan,
+          title: `${countryContext}${requirements.duration || '7'}-Day Meal Plan`
+        };
+        const insertResult = await aiPlansCollection.insertOne(newPlan);
+        
+        await archiveActivePlan(req.user.email, "meal", insertResult.insertedId);
+        
+        res.json({ success: true, plan: { ...newPlan, _id: insertResult.insertedId } });
+      } catch (error) {
+        if (error.status === 429 || error.status === 503) {
+          res.status(error.status).json({ success: false, code: error.code, message: error.message });
+        } else {
+          res.status(500).json({ success: false, message: error.message });
+        }
+      }
+    });
+
+    app.get('/ai/dashboard-summary', verifyToken, async (req, res) => {
+      try {
+        const userEmail = req.user.email;
+        const activePlans = await aiPlansCollection.find({ userEmail, status: "active" }).toArray();
+        
+        const summary = {
+          workout: { hasPlan: false },
+          nutrition: { hasPlan: false },
+          meal: { hasPlan: false },
+          recommendation: { message: "Keep pushing forward! Stay consistent to see results." }
+        };
+        
+        activePlans.forEach(plan => {
+          if (plan.type === 'workout') {
+            summary.workout = {
+              hasPlan: true,
+              planId: plan._id,
+              title: plan.title,
+              today: plan.planData?.weeklyPlan?.[0] || null
+            };
+          } else if (plan.type === 'nutrition') {
+            summary.nutrition = {
+              hasPlan: true,
+              planId: plan._id,
+              calories: plan.planData?.dailyTarget?.calories,
+              macros: plan.planData?.dailyTarget
+            };
+          } else if (plan.type === 'meal') {
+            summary.meal = {
+              hasPlan: true,
+              planId: plan._id,
+              today: plan.planData?.days?.[0] || null
+            };
+          }
+        });
+        
+        res.json({ success: true, summary });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get('/ai/history', verifyToken, async (req, res) => {
+      try {
+        const { type, page = 1, limit = 10 } = req.query;
+        const query = { userEmail: req.user.email };
+        if (type && type !== 'all') query.type = type;
+        
+        const skip = (Number(page) - 1) * Number(limit);
+        const plans = await aiPlansCollection.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit))
+            .toArray();
+            
+        const total = await aiPlansCollection.countDocuments(query);
+        
+        res.json({
+           success: true,
+           data: plans,
+           page: Number(page),
+           totalPages: Math.ceil(total / Number(limit))
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get('/ai/plans/:id', verifyToken, async (req, res) => {
+      try {
+        const plan = await aiPlansCollection.findOne({ 
+          _id: new ObjectId(req.params.id),
+          userEmail: req.user.email 
+        });
+        
+        if (!plan) return res.status(404).json({ success: false, message: "Plan not found or unauthorized" });
+        
+        res.json({ success: true, plan });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.patch('/ai/plans/:id/archive', verifyToken, async (req, res) => {
+      try {
+        const result = await aiPlansCollection.updateOne(
+          { _id: new ObjectId(req.params.id), userEmail: req.user.email },
+          { $set: { status: "archived", updatedAt: new Date() } }
+        );
+        
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ success: false, message: "Plan not found or unauthorized" });
+        }
+        
+        res.json({ success: true, message: "Plan archived successfully" });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.post('/ai/coach', verifyToken, premiumVerify, async (req, res) => {
+      try {
+        const { messages } = req.body;
+        const userProfile = { email: req.user?.email, name: req.user?.name };
+        
+        const responseText = await generateCoachResponse(messages, userProfile);
+        res.json({ success: true, response: responseText });
+      } catch (error) {
+        if (error.status === 429 || error.status === 503) {
+          res.status(error.status).json({ success: false, code: error.code, message: error.message });
+        } else {
+          res.status(500).json({ success: false, message: error.message });
+        }
+      }
+    });
+
+    app.post('/ai/chat', optionalVerifyToken, async (req, res) => {
+      try {
+        const { message, conversationId } = req.body;
+        const user = req.user;
+        let aiContext = null;
+
+        if (user) {
+          const activePlans = await aiPlansCollection.find({ userEmail: user.email, status: "active" }).toArray();
+          aiContext = {
+            userProfile: { email: user.email, name: user.name },
+            workout: activePlans.find(p => p.type === 'workout')?.planData || null,
+            nutrition: activePlans.find(p => p.type === 'nutrition')?.planData || null,
+            meal: activePlans.find(p => p.type === 'meal')?.planData || null
+          };
+        }
+        
+        let cid = conversationId;
+        let history = [];
+        
+        if (user) {
+          if (!cid) {
+            const newConv = await chatConversationsCollection.insertOne({
+              userEmail: user.email,
+              title: "FitZone Chat",
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            cid = newConv.insertedId;
+          } else {
+            const msgs = await chatMessagesCollection.find({ conversationId: new ObjectId(cid), userEmail: user.email })
+              .sort({ createdAt: 1 }).limit(20).toArray();
+            history = msgs.map(m => ({ role: m.role, content: m.content }));
+          }
+          
+          await chatMessagesCollection.insertOne({
+            conversationId: new ObjectId(cid),
+            userEmail: user.email,
+            role: "user",
+            content: message,
+            createdAt: new Date()
+          });
+        } else {
+          history = req.body.history || [];
+        }
+        
+        const aiResponse = await generateChatbotResponse(message, history, aiContext);
+        
+        if (user) {
+          await chatMessagesCollection.insertOne({
+            conversationId: new ObjectId(cid),
+            userEmail: user.email,
+            role: "assistant",
+            content: aiResponse,
+            createdAt: new Date()
+          });
+          
+          await chatConversationsCollection.updateOne(
+            { _id: new ObjectId(cid) },
+            { $set: { updatedAt: new Date() } }
+          );
+        }
+        
+        res.json({ success: true, response: aiResponse, conversationId: cid });
+      } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get('/ai/chat/history', verifyToken, async (req, res) => {
+      try {
+        const userEmail = req.user.email;
+        const conversations = await chatConversationsCollection.find({ userEmail })
+          .sort({ updatedAt: -1 }).limit(10).toArray();
+          
+        res.json({ success: true, conversations });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+    
+    app.get('/ai/chat/:id/messages', verifyToken, async (req, res) => {
+      try {
+        const messages = await chatMessagesCollection.find({ 
+          conversationId: new ObjectId(req.params.id),
+          userEmail: req.user.email 
+        }).sort({ createdAt: 1 }).toArray();
+        
+        res.json({ success: true, messages });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
 
     // Send a ping to confirm a successful connection
-    //await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
