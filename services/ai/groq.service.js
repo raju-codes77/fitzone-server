@@ -18,7 +18,7 @@ const generateConversationalResponse = async (messages) => {
   try {
     const chatCompletion = await client.chat.completions.create({
       messages: messages,
-      model: "llama3-8b-8192", // Using Llama 3 8b for fast, low-latency conversation
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
       temperature: 0.7,
       max_tokens: 1024,
       top_p: 1,
@@ -27,8 +27,12 @@ const generateConversationalResponse = async (messages) => {
     
     return chatCompletion.choices[0]?.message?.content || "";
   } catch (error) {
-    console.error("Groq AI Error:", error);
-    throw new Error("Failed to generate AI response. Please try again later.");
+    if (error.status === 400 || error.message?.includes("model_decommissioned")) {
+      console.error("[Groq] Model decommissioned or invalid configuration.");
+    }
+    const err = new Error("Failed to generate AI response. Please try again later.");
+    err.status = 503;
+    throw err;
   }
 };
 
@@ -39,22 +43,31 @@ const generateStructuredFallback = async (systemInstruction, prompt) => {
   }
 
   try {
+    // Explicitly instruct Groq to output JSON only
+    const jsonInstruction = `${systemInstruction}\nIMPORTANT: You must return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.`;
+    
     const chatCompletion = await client.chat.completions.create({
       messages: [
-        { role: "system", content: systemInstruction },
+        { role: "system", content: jsonInstruction },
         { role: "user", content: prompt }
       ],
-      model: "llama3-8b-8192",
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
       temperature: 0.1,
       response_format: { type: "json_object" },
       max_tokens: 2048,
     });
     
-    const jsonString = chatCompletion.choices[0]?.message?.content || "";
+    const jsonString = chatCompletion.choices[0]?.message?.content || "{}";
     return JSON.parse(jsonString);
   } catch (error) {
-    console.error("Groq Structured AI Error:", error);
-    throw new Error("Failed to generate AI plan via fallback.");
+    if (error.status === 400 || error.message?.includes("model_decommissioned")) {
+      console.error("[Groq] Model decommissioned or invalid configuration.");
+    } else {
+      console.error("[Groq Structured AI Error]", error.message || error);
+    }
+    const err = new Error("Failed to generate AI plan via fallback.");
+    err.status = 503;
+    throw err;
   }
 };
 
