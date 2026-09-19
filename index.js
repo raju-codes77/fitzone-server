@@ -70,6 +70,7 @@ const trainerVerify=async(req,res,next)=>{
 const database = client.db("fitzone");
 const classCollection = database.collection("classes");
 const forumsCollection = database.collection("forums");
+const forumCommentsCollection = database.collection("forum_comments");
 const newsletterCollection = database.collection("newsletter");
 const paymentCollection = database.collection("payment");
 const usersCollection = database.collection("user");
@@ -485,6 +486,73 @@ aiPlansCollection.createIndex({ userEmail: 1, createdAt: -1 }).catch(console.err
       res.send(result);
     });
 
+
+    
+    // Forum interactions
+    app.patch('/forums/:id/like', async (req, res) => {
+      const { id } = req.params;
+      const { userId } = req.body;
+      const forum = await forumsCollection.findOne({ _id: new ObjectId(id) });
+      if (!forum) return res.status(404).json({ success: false, message: "Forum not found" });
+      
+      let likes = forum.likes || [];
+      let dislikes = forum.dislikes || [];
+      
+      if (!likes.includes(userId)) likes.push(userId);
+      dislikes = dislikes.filter(u => u !== userId);
+      
+      await forumsCollection.updateOne({ _id: new ObjectId(id) }, { $set: { likes, dislikes } });
+      res.json({ success: true, likes, dislikes });
+    });
+
+    app.patch('/forums/:id/dislike', async (req, res) => {
+      const { id } = req.params;
+      const { userId } = req.body;
+      const forum = await forumsCollection.findOne({ _id: new ObjectId(id) });
+      if (!forum) return res.status(404).json({ success: false, message: "Forum not found" });
+      
+      let likes = forum.likes || [];
+      let dislikes = forum.dislikes || [];
+      
+      if (!dislikes.includes(userId)) dislikes.push(userId);
+      likes = likes.filter(u => u !== userId);
+      
+      await forumsCollection.updateOne({ _id: new ObjectId(id) }, { $set: { likes, dislikes } });
+      res.json({ success: true, likes, dislikes });
+    });
+
+    app.get('/forums/:id/comments', async (req, res) => {
+      const { id } = req.params;
+      const comments = await forumCommentsCollection.find({ forumId: id }).toArray();
+      res.json(comments);
+    });
+
+    app.post('/forums/:id/comments', async (req, res) => {
+      const { id } = req.params;
+      const comment = { ...req.body, forumId: id, createdAt: req.body.createdAt || new Date().toISOString(), replies: req.body.replies || [] };
+      const result = await forumCommentsCollection.insertOne(comment);
+      res.json({ success: true, insertedId: result.insertedId });
+    });
+
+    app.patch('/forums/:id/comments/:commentId', async (req, res) => {
+      const { commentId } = req.params;
+      const { text } = req.body;
+      await forumCommentsCollection.updateOne({ _id: new ObjectId(commentId) }, { $set: { text } });
+      res.json({ success: true });
+    });
+
+    app.delete('/forums/:id/comments/:commentId', async (req, res) => {
+      const { commentId } = req.params;
+      await forumCommentsCollection.deleteOne({ _id: new ObjectId(commentId) });
+      res.json({ success: true });
+    });
+
+    app.post('/forums/:id/comments/:commentId/reply', async (req, res) => {
+      const { commentId } = req.params;
+      const reply = { ...req.body, createdAt: req.body.createdAt || new Date().toISOString() };
+      await forumCommentsCollection.updateOne({ _id: new ObjectId(commentId) }, { $push: { replies: reply } });
+      res.json({ success: true });
+    });
 
     app.post('/forums', async (req, res) => {
       const forum = req.body;
