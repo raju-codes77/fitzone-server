@@ -484,7 +484,7 @@ async function run() {
     });
 
     //forums manage
-    app.get('/manage/forums/', async (req, res) => {
+    app.get('/manage/forums', async (req, res) => {
       const result = await forumsCollection.find().toArray();
       res.send(result);
     });
