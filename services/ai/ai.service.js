@@ -13,6 +13,12 @@ const generateWithFallback = async (systemInstruction, prompt, type) => {
 
   try {
     console.log(`[AI] ${type} generation started`);
+    
+    if (type === 'nutrition' || type === 'meal') {
+      console.log(`[AI] Bypassing Gemini for ${type}, forcing Groq`);
+      throw new Error("Forcing Groq for this type");
+    }
+    
     console.log("[AI] Trying Gemini");
     const result = await generateStructuredPlan(systemInstruction, prompt);
     if (!validator(result)) throw new Error("Invalid schema generated");
@@ -29,6 +35,9 @@ const generateWithFallback = async (systemInstruction, prompt, type) => {
       return fallbackResult;
     } catch (fallbackError) {
       console.log("[AI] Groq fallback failed");
+      if (fallbackError.status) {
+        throw fallbackError;
+      }
       const err = new Error("AI service is temporarily unavailable. Please try again shortly.");
       err.code = "AI_SERVICE_UNAVAILABLE";
       err.status = 503;
@@ -45,6 +54,7 @@ const generateChatbotFallback = async (systemInstruction, messages) => {
     ];
     return await generateConversationalResponse(groqMessages);
   } catch (err) {
+    if (err.status) throw err;
     const e = new Error("AI service is temporarily unavailable.");
     e.status = 503;
     throw e;
@@ -222,6 +232,7 @@ User Profile context: ${JSON.stringify(userProfile)}`;
       ];
       return await generateConversationalResponse(groqMessages);
     } catch (fallbackError) {
+      if (fallbackError.status) throw fallbackError;
       const e = new Error("AI Coach service is temporarily unavailable.");
       e.status = 503;
       throw e;
