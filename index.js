@@ -661,8 +661,15 @@ app.post("/api/send-email", async (req, res) => {
     to: email,
     subject: "FitZone",
     html: `
-    <h1>Welcome to FitZone ${name}</h1>
-    <p>Thank you for joining FitZone. We are excited to have you with us.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+        <h1 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Welcome to FitZone, ${name}!</h1>
+        <p style="font-size: 16px; line-height: 1.6;">Thank you for joining FitZone. We are thrilled to have you as a part of our fitness community.</p>
+        <p style="font-size: 16px; line-height: 1.6;">Whether your goal is to build strength, improve endurance, or maintain a healthy lifestyle, we are here to support you every step of the way.</p>
+        <p style="font-size: 16px; line-height: 1.6;">Get started by exploring our AI-powered workout plans, engaging with our expert trainers, and joining community discussions.</p>
+        <br/>
+        <p style="font-size: 16px; font-weight: bold; color: #2c3e50;">Stay active, stay healthy!</p>
+        <p style="font-size: 14px; color: #7f8c8d;">— The FitZone Team</p>
+      </div>
     `,
   };
 
